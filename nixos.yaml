@@ -19,7 +19,7 @@
 #     arch: x86_64
 
 images:
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.0.0/nixos-determinate-v1.0.0-aarch64.qcow2
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.0.1/nixos-determinate-v1.0.1-aarch64.qcow2
     arch: aarch64
     digest: sha512:efdd80a64529260be57916ec8e410afb832ce235e55cb1e3f9a6707257ce9aed442546e9d648c1e3c117ceffc7749902a55fe2a6317a6f00fa37d3740f4e27a2
 
