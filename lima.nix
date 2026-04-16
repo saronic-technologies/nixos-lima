@@ -1,98 +1,180 @@
 {
   config,
-  modulesPath,
   pkgs,
   lib,
   ...
 }:
+
+let
+  LIMA_CIDATA_MNT = "/mnt/lima-cidata";
+  LIMA_CIDATA_DEV = "/dev/disk/by-label/cidata";
+
+  cfg = config.services.lima;
+
+  fstabAwk = pkgs.writeText "lima-fstab.awk" ''
+    /^mounts:/ { flag=1; next }
+    /^[^:]*:/ { flag=0 }
+    /^ *$/ { flag=0 }
+    flag {
+      sub(/^ *- \[/, "")
+      sub(/"?\] *$/, "")
+      gsub("\"?, \"?", "\t")
+      print $0
+    }
+  '';
+
+  limaInit = pkgs.writeShellApplication {
+    name = "lima-init";
+    runtimeInputs = with pkgs; [
+      shadow
+      gawk
+    ];
+    text = ''
+      LIMA_CIDATA_USER="''${LIMA_CIDATA_USER:?}"
+      LIMA_CIDATA_HOME="''${LIMA_CIDATA_HOME:?}"
+      LIMA_CIDATA_UID="''${LIMA_CIDATA_UID:?}"
+
+      # Create user
+      id -u "$LIMA_CIDATA_USER" >/dev/null 2>&1 || \
+        useradd --home-dir "$LIMA_CIDATA_HOME" --create-home --uid "$LIMA_CIDATA_UID" "$LIMA_CIDATA_USER"
+
+      usermod -a -G wheel "$LIMA_CIDATA_USER"
+      usermod -a -G users "$LIMA_CIDATA_USER"
+
+      ln -fs /run/current-system/sw/bin/bash /bin/bash
+
+      # Create authorized_keys from Lima user-data
+      LIMA_CIDATA_SSHDIR="$LIMA_CIDATA_HOME/.ssh"
+      mkdir -p "$LIMA_CIDATA_SSHDIR"
+      chmod 700 "$LIMA_CIDATA_SSHDIR"
+      awk '
+        match($0, /^([[:space:]]*)ssh-authorized-keys:/, m) { ident="^" m[1] "[[:space:]]+-[[:space:]]+"; flag=1; next }
+        flag && $0 !~ ident { flag=0; next }
+        flag && $0 ~ ident { sub(ident, ""); gsub("\"", ""); print $0 }
+      ' "${LIMA_CIDATA_MNT}/user-data" > "$LIMA_CIDATA_SSHDIR/authorized_keys"
+      LIMA_CIDATA_GID=$(id -g "$LIMA_CIDATA_USER")
+      chown -R "$LIMA_CIDATA_UID:$LIMA_CIDATA_GID" "$LIMA_CIDATA_SSHDIR"
+      chmod 600 "$LIMA_CIDATA_SSHDIR/authorized_keys"
+
+      mkdir -p /etc/ssh/authorized_keys.d
+      chmod 700 /etc/ssh/authorized_keys.d
+      cp "$LIMA_CIDATA_SSHDIR/authorized_keys" "/etc/ssh/authorized_keys.d/$LIMA_CIDATA_USER"
+
+      # Add Lima mounts to /etc/fstab
+      sed -i '/#LIMA-START/,/#LIMA-END/d' /etc/fstab
+      {
+        echo "#LIMA-START"
+        awk -f ${fstabAwk} "${LIMA_CIDATA_MNT}/user-data"
+        echo "#LIMA-END"
+      } >> /etc/fstab
+
+      # Run system provisioning scripts
+      if [ -d "${LIMA_CIDATA_MNT}/provision.system" ]; then
+        for f in "${LIMA_CIDATA_MNT}/provision.system/"*; do
+          echo "Executing $f"
+          "$f" || echo "Failed to execute $f"
+        done
+      fi
+
+      # Run user provisioning scripts
+      USER_SCRIPT="$LIMA_CIDATA_HOME/.lima-user-script"
+      if [ -d "${LIMA_CIDATA_MNT}/provision.user" ]; then
+        until [ -e "/run/user/$LIMA_CIDATA_UID/systemd/private" ]; do sleep 3; done
+        params=$(grep -o '^PARAM_[^=]*' "${LIMA_CIDATA_MNT}/param.env" | paste -sd ,) || params=""
+        for f in "${LIMA_CIDATA_MNT}/provision.user/"*; do
+          echo "Executing $f as $LIMA_CIDATA_USER"
+          cp "$f" "$USER_SCRIPT"
+          chown "$LIMA_CIDATA_USER" "$USER_SCRIPT"
+          chmod 755 "$USER_SCRIPT"
+          /run/wrappers/bin/sudo -iu "$LIMA_CIDATA_USER" \
+            "--preserve-env=$params" \
+            "XDG_RUNTIME_DIR=/run/user/$LIMA_CIDATA_UID" \
+            "$USER_SCRIPT" || echo "Failed to execute $f as $LIMA_CIDATA_USER"
+          rm "$USER_SCRIPT"
+        done
+      fi
+
+      systemctl daemon-reload
+      systemctl restart local-fs.target
+
+      cp "${LIMA_CIDATA_MNT}/meta-data" /run/lima-ssh-ready
+      cp "${LIMA_CIDATA_MNT}/meta-data" /run/lima-boot-done
+    '';
+  };
+in
 {
-  imports = [
-    (modulesPath + "/profiles/qemu-guest.nix")
-    ./lima-init.nix
-  ];
+  options = {
+    services.lima = {
+      enable = lib.mkEnableOption "lima-init, lima-guestagent, other Lima support";
+    };
+  };
 
-  # Get image under 2GB for Github release.
-  documentation.enable = false;
+  config = lib.mkIf cfg.enable {
+    systemd.services.lima-init = {
+      description = "Reconfigure the system from lima-init userdata on startup";
 
-  # Give users in the `wheel` group additional rights when connecting to the Nix daemon
-  # This simplifies remote deployment to the instance's nix store.
-  nix = {
-    channel.enable = false;
+      wantedBy = [ "multi-user.target" ];
+      after = [ "network-pre.target" ];
 
-    settings = {
-      auto-optimise-store = true;
-      experimental-features = [
-        "flakes"
-        "nix-command"
+      restartIfChanged = false;
+      unitConfig.X-StopOnRemoval = false;
+
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = "${limaInit}/bin/lima-init";
+        EnvironmentFile = "${LIMA_CIDATA_MNT}/lima.env";
+      };
+    };
+
+    systemd.services.lima-guestagent = {
+      description = "Forward ports to the lima-hostagent";
+      wantedBy = [ "multi-user.target" ];
+      after = [
+        "network.target"
+        "lima-init.service"
       ];
-      min-free = "8G";
-      max-free = "32G";
-      trusted-users = [ "@wheel" ];
+      requires = [ "lima-init.service" ];
+      script = ''
+        ${LIMA_CIDATA_MNT}/lima-guestagent daemon --vsock-port "$LIMA_CIDATA_VSOCK_PORT"
+      '';
+      serviceConfig = {
+        Type = "simple";
+        Restart = "on-failure";
+        EnvironmentFile = "${LIMA_CIDATA_MNT}/lima.env";
+      };
     };
-  };
 
-  # Read Lima configuration at boot time and run the Lima guest agent
-  services.lima.enable = true;
-
-  # ssh
-  services.openssh.enable = true;
-
-  security = {
-    sudo = {
-      enable = true;
-      wheelNeedsPassword = false;
-    };
-  };
-
-  # system mounts
-  boot = {
-    kernelParams = [ "console=tty0" ];
-    loader = {
-      efi.canTouchEfiVariables = true;
-      systemd-boot.enable = true;
-    };
-  };
-  fileSystems = {
-    "/boot" = {
-      device = lib.mkForce "/dev/vda1";
-      fsType = "vfat";
+    fileSystems."${LIMA_CIDATA_MNT}" = {
+      device = "${LIMA_CIDATA_DEV}";
+      fsType = "auto";
       options = [
-        "discard"
-        "noatime"
-        "umask=0077"
+        "ro"
+        "mode=0700"
+        "dmode=0700"
+        "overriderockperm"
+        "exec"
+        "uid=0"
       ];
     };
-    "/" = {
-      device = lib.mkForce "/dev/vda2";
-      fsType = "ext4";
-      options = [
-        "discard"
-        "noatime"
-        "nodiratime"
-      ];
+
+    environment.etc = {
+      environment.source = "${LIMA_CIDATA_MNT}/etc_environment";
     };
-  };
 
-  # pkgs
-  environment.systemPackages = with pkgs; [
-    vim
-    git
-    htop
-    direnv
-    nix-output-monitor
-  ];
+    networking.nat.enable = true;
 
-  programs = {
-    direnv = {
-      enable = true;
-      silent = true;
+    environment.systemPackages = with pkgs; [
+      bash
+      sshfs
+      fuse3
+      git
+    ];
+
+    boot.kernel.sysctl = {
+      "kernel.unprivileged_userns_clone" = 1;
+      "net.ipv4.ping_group_range" = "0 2147483647";
+      "net.ipv4.ip_unprivileged_port_start" = 0;
     };
-  };
-
-  system.stateVersion = "25.11";
-
-  virtualisation.rosetta = {
-    enable = pkgs.stdenv.hostPlatform.isAarch64;
-    mountTag = "vz-rosetta";
   };
 }

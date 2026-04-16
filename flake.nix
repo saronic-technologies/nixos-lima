@@ -1,110 +1,104 @@
 {
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
-    flake-utils.url = "https://flakehub.com/f/numtide/flake-utils/*";
-    nixos-generators = {
-      url = "https://flakehub.com/f/nix-community/nixos-generators/*";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # nixpkgs-unstable is used only for lima in the devShell; the stable nixpkgs
+    # version is outdated and approaching end-of-life.
+    nixpkgs-unstable.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*";
     determinate = {
       url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
+
   outputs =
     {
       self,
       nixpkgs,
-      flake-utils,
-      nixos-generators,
+      nixpkgs-unstable,
       determinate,
       ...
-    }@attrs:
-    # Create system-specific outputs for lima systems
+    }:
     let
-      ful = flake-utils.lib;
-    in
-    ful.eachSystem [ ful.system.x86_64-linux ful.system.aarch64-linux ] (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-      in
-      {
-        packages = {
-          nixos-image = nixos-generators.nixosGenerate {
-            inherit pkgs;
-            modules = [
-              ./lima.nix
-            ];
-            format = "qcow-efi";
-          };
-          nixos-determinate-image = nixos-generators.nixosGenerate {
-            inherit pkgs;
-            modules = [
-              determinate.nixosModules.default
-              ./lima.nix
-            ];
-            format = "qcow-efi";
-          };
+      lib = nixpkgs.lib;
+
+      devSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
+
+      pkgsFor = system: nixpkgs.legacyPackages.${system};
+      pkgsUnstableFor = system: nixpkgs-unstable.legacyPackages.${system};
+
+      makeImage =
+        system: nixosSystem:
+        import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
+          pkgs = pkgsFor system;
+          config = nixosSystem.config;
+          inherit lib;
+          format = "qcow2-compressed";
+          partitionTableType = "efi";
         };
-      }
-    )
-    // ful.eachSystem [ ful.system.x86_64-linux ful.system.aarch64-linux ful.system.aarch64-darwin ] (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            qemu
-            (lima.override {
-              withAdditionalGuestAgents = true;
-            })
+
+      mkNixosConfig =
+        {
+          system,
+          withDeterminate ? false,
+        }:
+        lib.nixosSystem {
+          inherit system;
+          modules = lib.optionals withDeterminate [ determinate.nixosModules.default ] ++ [
+            self.nixosModules.lima
+            { services.lima.enable = true; }
+            ./image.nix
           ];
         };
-      }
-    )
-    // {
-      nixosConfigurations.nixos-aarch64 = nixpkgs.lib.nixosSystem {
-        system = "aarch64-linux";
-        specialArgs = attrs;
-        modules = [
-          ./lima.nix
-        ];
+    in
+    {
+      packages = {
+        aarch64-linux = {
+          nixos-image = makeImage "aarch64-linux" self.nixosConfigurations.nixos-aarch64;
+          nixos-determinate-image = makeImage "aarch64-linux" self.nixosConfigurations.nixos-determinate-aarch64;
+        };
+        x86_64-linux = {
+          nixos-image = makeImage "x86_64-linux" self.nixosConfigurations.nixos-x86_64;
+          nixos-determinate-image = makeImage "x86_64-linux" self.nixosConfigurations.nixos-determinate-x86_64;
+        };
       };
 
-      nixosConfigurations.nixos-x86_64 = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = attrs;
-        modules = [
-          ./lima.nix
-        ];
-      };
+      devShells = lib.genAttrs devSystems (system: {
+        default =
+          let
+            pkgs = pkgsFor system;
+            pkgsUnstable = pkgsUnstableFor system;
+          in
+          pkgs.mkShell {
+            packages = [
+              pkgs.qemu
+              # withAdditionalGuestAgents bundles guest agent binaries for both
+              # aarch64 and x86_64, needed to serve the correct binary to each VM.
+              (pkgsUnstable.lima.override { withAdditionalGuestAgents = true; })
+            ];
+          };
+      });
 
-      nixosConfigurations.nixos-determinate-aarch64 = nixpkgs.lib.nixosSystem {
-        system = "aarch64-linux";
-        specialArgs = attrs;
-        modules = [
-          determinate.nixosModules.default
-          ./lima.nix
-        ];
-      };
-
-      nixosConfigurations.nixos-determinate-x86_64 = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = attrs;
-        modules = [
-          determinate.nixosModules.default
-          ./lima.nix
-        ];
+      nixosConfigurations = {
+        nixos-aarch64 = mkNixosConfig { system = "aarch64-linux"; };
+        nixos-x86_64 = mkNixosConfig { system = "x86_64-linux"; };
+        nixos-determinate-aarch64 = mkNixosConfig {
+          system = "aarch64-linux";
+          withDeterminate = true;
+        };
+        nixos-determinate-x86_64 = mkNixosConfig {
+          system = "x86_64-linux";
+          withDeterminate = true;
+        };
       };
 
       nixosModules.lima = {
-        imports = [ ./lima-init.nix ];
+        imports = [ ./lima.nix ];
       };
 
-      formatter.aarch64-darwin = nixpkgs.legacyPackages.aarch64-darwin.nixfmt-rfc-style;
-      formatter.aarch64-linux = nixpkgs.legacyPackages.aarch64-linux.nixfmt-rfc-style;
+      formatter = lib.genAttrs devSystems (system: (pkgsFor system).nixfmt);
     };
 }
