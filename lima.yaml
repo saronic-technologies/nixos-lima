@@ -1,0 +1,41 @@
+# See https://github.com/lima-vm/lima/blob/master/templates/default.yaml for all lima options
+
+# To use a locally built image instead, replace the images section above with:
+# images:
+#   - location: "./result/nixos.qcow2"
+#     arch: aarch64
+images:
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.0.1/nixos-determinate-v1.0.1-aarch64.qcow2
+    arch: aarch64
+    digest: sha512:efdd80a64529260be57916ec8e410afb832ce235e55cb1e3f9a6707257ce9aed442546e9d648c1e3c117ceffc7749902a55fe2a6317a6f00fa37d3740f4e27a2
+
+mounts:
+  - location: '~'
+    writable: false
+#   - location: ~/shared
+#     writable: true
+
+rosetta:
+  enabled: true
+cpus: 12
+memory: 40GiB
+disk: 1024GiB
+
+portForwards:
+  # NixOS intercepts UDP port 68 (DHCP), which causes Lima's port-forwarding to
+  # capture host DHCP packets. Ignore it explicitly to prevent network issues.
+  # See: https://github.com/nixos-lima/nixos-lima/issues/50
+  - proto: udp
+    guestPort: 68
+    guestIP: 0.0.0.0
+    ignore: true
+    
+containerd:
+  system: false
+  user: false
+
+# user:
+#   name: "developer"
+
+# ssh:
+#   localPort: 60022
