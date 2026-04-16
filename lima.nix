@@ -103,11 +103,7 @@ let
   };
 in
 {
-  options = {
-    services.lima = {
-      enable = lib.mkEnableOption "lima-init, lima-guestagent, other Lima support";
-    };
-  };
+  options.services.lima.enable = lib.mkEnableOption "lima-init, lima-guestagent, other Lima support";
 
   config = lib.mkIf cfg.enable {
     systemd.services.lima-init = {

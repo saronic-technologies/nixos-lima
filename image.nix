@@ -1,5 +1,4 @@
 {
-  config,
   modulesPath,
   pkgs,
   lib,
@@ -7,7 +6,7 @@
 }:
 {
   imports = [
-    (modulesPath + "/profiles/qemu-guest.nix")
+    "${modulesPath}/profiles/qemu-guest.nix"
   ];
 
   nix = {
@@ -30,6 +29,7 @@
   security.sudo.wheelNeedsPassword = false;
 
   boot = {
+    growPartition = true;
     kernelParams = [ "console=tty0" ];
     loader = {
       # VM images have no persistent EFI variable store; systemd-boot must
@@ -52,6 +52,7 @@
     "/" = {
       device = lib.mkForce "/dev/vda2";
       fsType = "ext4";
+      autoResize = true;
       options = [
         "discard"
         "noatime"
@@ -76,6 +77,8 @@
     enable = true;
     mountTag = "vz-rosetta";
   };
+
+  system.activationScripts.removeChannels = "rm -rf /root/.nix-defexpr/channels /nix/var/nix/profiles/per-user/root/channels";
 
   system.stateVersion = "25.11";
 }
