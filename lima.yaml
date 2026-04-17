@@ -5,18 +5,20 @@
 #   - location: "./result/nixos.qcow2"
 #     arch: aarch64
 images:
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.0.1/nixos-determinate-v1.0.1-aarch64.qcow2
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.1.0/nixos-determinate-v1.1.0-aarch64.qcow2
     arch: aarch64
-    digest: sha512:efdd80a64529260be57916ec8e410afb832ce235e55cb1e3f9a6707257ce9aed442546e9d648c1e3c117ceffc7749902a55fe2a6317a6f00fa37d3740f4e27a2
+    digest: sha512:5f1915bf053552d44c749af55fa45544b24520c29cd622dbbc7c7b739d90545eb5f2717c35908a7dc36e95e3d2cbb00c924eb150ab82df07acfcdd77755dcf27
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.1.0/nixos-determinate-v1.1.0-x86_64.qcow2
+    arch: x86_64
+    digest: sha512:d39383947e95b32db8a3a97e0fea191d9db96a0bce1a62d281eb5e30bc089219d8ec882347c8dac9e5cd590c787a04738511a4e43cedddda21c077f7e2c691de
 
 mounts:
   - location: '~'
     writable: true
-#   - location: ~/shared
-#     writable: true
 
 rosetta:
   enabled: true
+
 cpus: 12
 memory: 40GiB
 disk: 1024GiB
