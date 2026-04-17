@@ -20,7 +20,6 @@ limactl create --name nixos --cpus 4 --memory 8 --disk 128 https://raw.githubuse
 
 3. Open a shell in the VM:
 
-> **Note:** The default configuration mounts your home directory (`~`) into the VM as **read-only**. To enable writes, edit `lima.yaml` and set `writable: true` on the mount before creating the VM.
 
 ```bash
 limactl shell nixos
