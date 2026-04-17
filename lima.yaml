@@ -7,10 +7,10 @@
 images:
   - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.1.0/nixos-determinate-v1.1.0-aarch64.qcow2
     arch: aarch64
-    digest: sha512:5f1915bf053552d44c749af55fa45544b24520c29cd622dbbc7c7b739d90545eb5f2717c35908a7dc36e95e3d2cbb00c924eb150ab82df07acfcdd77755dcf27
+    digest: sha512:eca2fedc41022619c864dc2f38ed5af08dd6a2c7048abefb541b78419d2fe0c1b1bbf55dab9de9b3ecfb1802543f61f43fb846befcaa3c9f401fd2bb61448f36
   - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.1.0/nixos-determinate-v1.1.0-x86_64.qcow2
     arch: x86_64
-    digest: sha512:d39383947e95b32db8a3a97e0fea191d9db96a0bce1a62d281eb5e30bc089219d8ec882347c8dac9e5cd590c787a04738511a4e43cedddda21c077f7e2c691de
+    digest: sha512:fd7eaae737534d8d4971786c1bee0e69ff170ea90dea76b87ddbc4a26008ebbcac9438b71cc898f05fd5fa0a68a6f639cb6ab19e66f6db0229e14a8cd4503c02
 
 mounts:
   - location: '~'
