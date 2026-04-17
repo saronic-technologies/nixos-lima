@@ -1,1 +1,4 @@
 result*
+*.qcow2
+
+.claude
