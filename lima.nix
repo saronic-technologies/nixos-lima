@@ -97,8 +97,14 @@ let
       systemctl daemon-reload
       systemctl restart local-fs.target
 
-      cp "${LIMA_CIDATA_MNT}/meta-data" /run/lima-ssh-ready
-      cp "${LIMA_CIDATA_MNT}/meta-data" /run/lima-boot-done
+      # Lima >= 2.1.0 expects the instance ID in signal files; older versions expect meta-data
+      if [ -n "''${LIMA_CIDATA_IID:-}" ]; then
+        echo "$LIMA_CIDATA_IID" > /run/lima-ssh-ready
+        echo "$LIMA_CIDATA_IID" > /run/lima-boot-done
+      else
+        cp "${LIMA_CIDATA_MNT}/meta-data" /run/lima-ssh-ready
+        cp "${LIMA_CIDATA_MNT}/meta-data" /run/lima-boot-done
+      fi
     '';
   };
 in
