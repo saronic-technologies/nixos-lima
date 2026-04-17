@@ -1,5 +1,4 @@
 result*
+*.qcow2
 
 .claude
-
-*.qcow2
