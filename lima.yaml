@@ -11,7 +11,7 @@ images:
 
 mounts:
   - location: '~'
-    writable: false
+    writable: true
 #   - location: ~/shared
 #     writable: true
 
@@ -29,7 +29,7 @@ portForwards:
     guestPort: 68
     guestIP: 0.0.0.0
     ignore: true
-    
+
 containerd:
   system: false
   user: false
