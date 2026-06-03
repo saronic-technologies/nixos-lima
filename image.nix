@@ -73,9 +73,18 @@
     silent = true;
   };
 
-  virtualisation.rosetta = lib.mkIf pkgs.stdenv.hostPlatform.isAarch64 {
-    enable = true;
-    mountTag = "vz-rosetta";
+  virtualisation = {
+    containers.enable = true;
+    podman = {
+      enable = true;
+      dockerCompat = true;
+      dockerSocket.enable = true;
+      defaultNetwork.settings.dns_enabled = true;
+    };
+    rosetta = lib.mkIf pkgs.stdenv.hostPlatform.isAarch64 {
+      enable = true;
+      mountTag = "vz-rosetta";
+    };
   };
 
   system.activationScripts.removeChannels = "rm -rf /root/.nix-defexpr/channels /nix/var/nix/profiles/per-user/root/channels";

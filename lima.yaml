@@ -5,12 +5,12 @@
 #   - location: "./result/nixos.qcow2"
 #     arch: aarch64
 images:
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.0/nixos-determinate-v1.2.0-aarch64.qcow2
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.3.0/nixos-determinate-v1.3.0-aarch64.qcow2
     arch: aarch64
-    digest: sha512:46399fd235420fe296bcfe134ff6ef7030bd1666ca84e1c50a9579ea4a39eb3fb900d9247339339a2e0557a729ea257d7a6b57b0638dc06e41da8f264e92fe6d
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.0/nixos-determinate-v1.2.0-x86_64.qcow2
+    digest: sha512:bf2e926495f306bb607a6e8609b3286d438b2522caa3bd982d734a4e0681522b538fbd70ad89181020d347bb90a73ee91be0b1178c048e6485d6b0c8b3928e70
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.3.0/nixos-determinate-v1.3.0-x86_64.qcow2
     arch: x86_64
-    digest: sha512:8c72727bc4f15ef343e089b5945b30a3f74eff095035cf57260476297092a921fda3d75fabfb1b43255efd228326f8ca52f6892401c96f844e0129a2e21262d3
+    digest: sha512:0f7e38bad93394828c9aff502c55f0190714ded3166e1af5cac662773facb3aba91f08672bf7a41fd2bffbf27c54d78039e537c761e3ffe98b18e2f7ed16c73a
 
 mounts:
   - location: '~'
@@ -31,6 +31,12 @@ portForwards:
     guestPort: 68
     guestIP: 0.0.0.0
     ignore: true
+  # rootless
+  - guestSocket: "/run/user/{{.UID}}/podman/podman.sock"
+    hostSocket: "{{.Dir}}/sock/podman.sock"
+  # rootful
+  - guestSocket: "/run/podman/podman.sock"
+    hostSocket: "{{.Dir}}/sock/podman-rootful.sock"
 
 containerd:
   system: false

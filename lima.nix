@@ -40,6 +40,8 @@ let
 
       usermod -a -G wheel "$LIMA_CIDATA_USER"
       usermod -a -G users "$LIMA_CIDATA_USER"
+      usermod -a -G podman "$LIMA_CIDATA_USER"
+      usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "$LIMA_CIDATA_USER"
 
       ln -fs /run/current-system/sw/bin/bash /bin/bash
 
