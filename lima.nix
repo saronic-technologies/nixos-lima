@@ -138,7 +138,12 @@ in
       ];
       requires = [ "lima-init.service" ];
       script = ''
-        ${LIMA_CIDATA_MNT}/lima-guestagent daemon --vsock-port "$LIMA_CIDATA_VSOCK_PORT"
+        # Build the lima-guestagent command options, setting --socket-owner if Lima v2.1.3 or greater
+        options="--vsock-port $LIMA_CIDATA_VSOCK_PORT"
+        if ${LIMA_CIDATA_MNT}/lima-guestagent daemon --help 2>&1 | grep -q -- '--socket-owner'; then
+          options="$options --socket-owner $LIMA_CIDATA_UID"
+        fi
+        ${LIMA_CIDATA_MNT}/lima-guestagent daemon $options
       '';
       serviceConfig = {
         Type = "simple";
