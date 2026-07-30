@@ -1,6 +1,6 @@
 # See https://github.com/lima-vm/lima/blob/master/templates/default.yaml for all lima options
 
-# To use a locally built image instead, replace the images section above with:
+# To use a locally built image instead, replace the images section below with:
 # images:
 #   - location: "./result/nixos.qcow2"
 #     arch: aarch64
