@@ -1,23 +1,25 @@
 # See https://github.com/lima-vm/lima/blob/master/templates/default.yaml for all lima options
 
-# To use a locally built image instead, replace the images section above with:
+# To use a locally built image instead, replace the images section below with:
 # images:
 #   - location: "./result/nixos.qcow2"
 #     arch: aarch64
 images:
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.0/nixos-determinate-v1.2.0-aarch64.qcow2
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.1/nixos-determinate-v1.2.1-aarch64.qcow2
     arch: aarch64
-    digest: sha512:46399fd235420fe296bcfe134ff6ef7030bd1666ca84e1c50a9579ea4a39eb3fb900d9247339339a2e0557a729ea257d7a6b57b0638dc06e41da8f264e92fe6d
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.0/nixos-determinate-v1.2.0-x86_64.qcow2
+    digest: sha512:1dad52aacb5b09e8fc58205c3f6ae8c950086ffaa105ad7ef04fb1bf5f0f37397578aa7f4be5f5a547c7a0b86753c3f29bb89ff8c8414457709b1cdece4d9500
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.1/nixos-determinate-v1.2.1-x86_64.qcow2
     arch: x86_64
-    digest: sha512:8c72727bc4f15ef343e089b5945b30a3f74eff095035cf57260476297092a921fda3d75fabfb1b43255efd228326f8ca52f6892401c96f844e0129a2e21262d3
+    digest: sha512:1373223530a83b07d850afaffd06032b0745f65dca7c880cc148fd062492b1b79a00155d8b7dc329eb22f0633236feeb558954eba725cc0bd65913feef6979df
 
 mounts:
   - location: '~'
     writable: true
 
-rosetta:
-  enabled: true
+vmOpts:
+  vz:
+    rosetta:
+      enabled: true
 
 cpus: 12
 memory: 40GiB
