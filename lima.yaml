@@ -16,8 +16,10 @@ mounts:
   - location: '~'
     writable: true
 
-rosetta:
-  enabled: true
+vmOpts:
+  vz:
+    rosetta:
+      enabled: true
 
 cpus: 12
 memory: 40GiB
