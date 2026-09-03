@@ -78,6 +78,12 @@
     mountTag = "vz-rosetta";
   };
 
+  # virtio-blk reports rotational=1 by default even on SSDs; fix that and
+  # switch to the passthrough scheduler so the NVMe device handles its own queuing.
+  services.udev.extraRules = ''
+    ACTION=="add|change", KERNEL=="vd[a-z]", ATTR{queue/rotational}="0", ATTR{queue/scheduler}="none"
+  '';
+
   system.activationScripts.removeChannels = "rm -rf /root/.nix-defexpr/channels /nix/var/nix/profiles/per-user/root/channels";
 
   system.stateVersion = "26.05";
