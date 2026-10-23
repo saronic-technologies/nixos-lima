@@ -102,6 +102,37 @@
           # Tools for building NixOS images
           build-tools = pkgs.mkShellNoCC {
             packages = [
+              pkgs.gh
+              (pkgs.writeShellApplication {
+                name = "release";
+                runtimeInputs = [ pkgs.gh ];
+                text = ''
+                  if [[ $# -eq 0 ]]; then
+                    echo "Usage: release --tag <version>"
+                    echo ""
+                    echo "  --tag <version>      Release version (e.g. v1.2.3)"
+                    exit 1
+                  fi
+                  tag=""
+                  while [[ $# -gt 0 ]]; do
+                    if [[ "$1" == "--tag" ]]; then
+                      shift
+                      tag="$1"
+                    else
+                      printf 'Error: unexpected argument "%s"\n' "$1"
+                      exit 1
+                    fi
+                    shift
+                  done
+                  if [[ -z "''${tag}" ]]; then
+                    echo "Error: --tag is required"
+                    exit 1
+                  fi
+                  gh workflow run release.yml -f version="''${tag}"
+                  echo "Triggered release workflow for ''${tag}"
+                  echo "Track progress: gh run list --workflow=release.yml"
+                '';
+              })
               (pkgs.writeShellApplication {
                 name = "build-image";
                 runtimeInputs = [

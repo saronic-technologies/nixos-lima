@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v1.2.3)'
+        required: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+          - arch: x86_64
+            runner: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build image
+        run: |
+          out=$(nix build .#packages.${{ matrix.arch }}-linux.nixos-determinate-image --print-out-paths)
+          filename="nixos-determinate-${{ inputs.version }}-${{ matrix.arch }}.qcow2"
+          cp "${out}/nixos.qcow2" "${filename}"
+          sha512sum "${filename}" > "${filename}.sha512"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: |
+            nixos-determinate-${{ inputs.version }}-${{ matrix.arch }}.qcow2
+            nixos-determinate-${{ inputs.version }}-${{ matrix.arch }}.qcow2.sha512
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Update lima.yaml
+        run: |
+          TAG="${{ inputs.version }}"
+          REPO="${{ github.repository }}"
+          AARCH64_HASH=$(awk '{print $1}' "nixos-determinate-${TAG}-aarch64.qcow2.sha512")
+          X86_64_HASH=$(awk '{print $1}' "nixos-determinate-${TAG}-x86_64.qcow2.sha512")
+          python3 - "$TAG" "$REPO" "$AARCH64_HASH" "$X86_64_HASH" <<'EOF'
+          import re, sys
+          tag, repo, aarch64_hash, x86_64_hash = sys.argv[1:]
+          base_url = f"https://github.com/{repo}/releases/download/{tag}"
+          with open('lima.yaml') as f:
+              content = f.read()
+          content = re.sub(
+              r'(  - location: )[^\n]*nixos-determinate-[^\n]*-aarch64\.qcow2(\n    arch: aarch64\n    digest: sha512:)[0-9a-f]+',
+              f'\\g<1>{base_url}/nixos-determinate-{tag}-aarch64.qcow2\\g<2>{aarch64_hash}',
+              content
+          )
+          content = re.sub(
+              r'(  - location: )[^\n]*nixos-determinate-[^\n]*-x86_64\.qcow2(\n    arch: x86_64\n    digest: sha512:)[0-9a-f]+',
+              f'\\g<1>{base_url}/nixos-determinate-{tag}-x86_64.qcow2\\g<2>{x86_64_hash}',
+              content
+          )
+          with open('lima.yaml', 'w') as f:
+              f.write(content)
+          EOF
+
+      - name: Commit, tag, and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lima.yaml
+          git commit -m "chore: update lima.yaml for ${{ inputs.version }}"
+          git tag "${{ inputs.version }}"
+          git push origin HEAD:main "${{ inputs.version }}"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          files: |
+            nixos-determinate-${{ inputs.version }}-aarch64.qcow2
+            nixos-determinate-${{ inputs.version }}-x86_64.qcow2
