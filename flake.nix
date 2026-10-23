@@ -110,11 +110,12 @@
                 ];
                 text = ''
                   if [[ $# -eq 0 ]]; then
-                    echo "Usage: build-image [aarch64|x86_64] [--determinate]"
+                    echo "Usage: build-image [aarch64|x86_64] [--determinate] [--tag <version>]"
                     echo ""
                     echo "  aarch64              Build for ARM64"
                     echo "  x86_64               Build for x86_64"
                     echo "  --determinate        Use Determinate Nix image"
+                    echo "  --tag <version>      Copy output as nixos[-determinate]-<version>-<arch>.qcow2"
                     exit 1
                   fi
                   arch="$1"
@@ -124,19 +125,33 @@
                     exit 1
                   fi
                   variant="nixos-image"
+                  tag=""
                   nix_args=()
-                  for arg in "$@"; do
-                    if [[ "$arg" == "--determinate" ]]; then
+                  while [[ $# -gt 0 ]]; do
+                    if [[ "$1" == "--determinate" ]]; then
                       variant="nixos-determinate-image"
-                    elif [[ "$arg" == -* ]]; then
-                      nix_args+=("$arg")
+                    elif [[ "$1" == "--tag" ]]; then
+                      shift
+                      tag="$1"
+                    elif [[ "$1" == -* ]]; then
+                      nix_args+=("$1")
                     else
-                      printf 'Error: unexpected argument "%s"\n' "$arg"
+                      printf 'Error: unexpected argument "%s"\n' "$1"
                       exit 1
                     fi
+                    shift
                   done
                   out=$(nom build ".#packages.''${arch}-linux.''${variant}" "''${nix_args[@]}" --print-out-paths)
                   sha512sum "''${out}/nixos.qcow2"
+                  if [[ -n "''${tag}" ]]; then
+                    name_prefix="nixos"
+                    if [[ "''${variant}" == "nixos-determinate-image" ]]; then
+                      name_prefix="nixos-determinate"
+                    fi
+                    dest="''${name_prefix}-''${tag}-''${arch}.qcow2"
+                    cp "''${out}/nixos.qcow2" "./''${dest}"
+                    echo "Copied to ''${dest}"
+                  fi
                 '';
               })
             ];

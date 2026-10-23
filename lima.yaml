@@ -5,12 +5,12 @@
 #   - location: "./result/nixos.qcow2"
 #     arch: aarch64
 images:
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.1/nixos-determinate-v1.2.1-aarch64.qcow2
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.2/nixos-determinate-v1.2.2-aarch64.qcow2
     arch: aarch64
-    digest: sha512:1dad52aacb5b09e8fc58205c3f6ae8c950086ffaa105ad7ef04fb1bf5f0f37397578aa7f4be5f5a547c7a0b86753c3f29bb89ff8c8414457709b1cdece4d9500
-  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.1/nixos-determinate-v1.2.1-x86_64.qcow2
+    digest: sha512:784d556baebde7a139f94d0cbaff3f2f0110a3793da245b7fe9df475abdcc1f1f03948e7779fb740c19b15f068bf9ff02e70e78bbd574d08b735e0447738bf98
+  - location: https://github.com/saronic-technologies/nixos-lima/releases/download/v1.2.2/nixos-determinate-v1.2.2-x86_64.qcow2
     arch: x86_64
-    digest: sha512:1373223530a83b07d850afaffd06032b0745f65dca7c880cc148fd062492b1b79a00155d8b7dc329eb22f0633236feeb558954eba725cc0bd65913feef6979df
+    digest: sha512:d4e8ad3e4793eeef6aff8a611344c8b1f52b19d8619ac8fa602d8cc1f606c6ff4fb628adcb51b63a4c077fe29a0ddaf383a1edbd69e718a204536e29b990623b
 
 mounts:
   - location: '~'
